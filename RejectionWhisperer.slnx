@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Procfile" />
+    <File Path="requirements.txt" />
+  </Folder>
+  <Project Path="RejectionWhisperer.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="ac9a6ec7-acf3-41dd-8890-68793ff5d5f9">
+    <Build Project="false" />
+  </Project>
+</Solution>
