@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import sqlite3
+import os
 from datetime import datetime
 
 app = Flask(__name__)
@@ -36,35 +37,6 @@ def save_rejection(pr_number, repo_name, pr_title, author, classification, actio
     conn.commit()
     conn.close()
     print(f"Saved PR #{pr_number} to database.")
-
-def get_stats():
-    conn = sqlite3.connect('rejections.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('SELECT COUNT(*) FROM rejections')
-    total = cursor.fetchone()[0]
-    
-    cursor.execute('''
-        SELECT classification, COUNT(*) 
-        FROM rejections 
-        GROUP BY classification
-    ''')
-    stats = cursor.fetchall()
-    
-    conn.close()
-    return total, stats
-
-def print_stats():
-    total, stats = get_stats()
-    print("\n" + "=" * 40)
-    print(f"Total Rejections: {total}")
-    print("By Classification:")
-    if stats:
-        for classification, count in stats:
-            print(f"   - {classification}: {count}")
-    else:
-        print("   No data yet.")
-    print("=" * 40 + "\n")
 
 # ===================== تصنيف البوت =====================
 
@@ -147,4 +119,5 @@ def webhook():
 
 if __name__ == '__main__':
     init_db()
-    app.run(port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
