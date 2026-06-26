@@ -1,10 +1,8 @@
 from flask import Flask, request, jsonify
 import sqlite3
-from datetime import datetime
+import os
 
 app = Flask(__name__)
-
-# ===================== قاعدة البيانات =====================
 
 def init_db():
     conn = sqlite3.connect('rejections.db')
@@ -37,38 +35,7 @@ def save_rejection(pr_number, repo_name, pr_title, author, classification, actio
     conn.close()
     print(f"Saved PR #{pr_number} to database.")
 
-def get_stats():
-    conn = sqlite3.connect('rejections.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('SELECT COUNT(*) FROM rejections')
-    total = cursor.fetchone()[0]
-    
-    cursor.execute('''
-        SELECT classification, COUNT(*) 
-        FROM rejections 
-        GROUP BY classification
-    ''')
-    stats = cursor.fetchall()
-    
-    conn.close()
-    return total, stats
-
-def print_stats():
-    total, stats = get_stats()
-    print("\n" + "=" * 40)
-    print(f"Total Rejections: {total}")
-    print("By Classification:")
-    if stats:
-        for classification, count in stats:
-            print(f"   - {classification}: {count}")
-    else:
-        print("   No data yet.")
-    print("=" * 40 + "\n")
-
-# ===================== تصنيف البوت =====================
-
-AI_AGENTS = ['copilot', 'dependabot', 'devin', 'cursor', 'claude', 'codex', 'github-actions', 'renovate']
+AI_AGENTS = ['copilot', 'dependabot', 'devin', 'cursor']
 
 def is_ai_agent(username):
     if not username:
@@ -107,8 +74,6 @@ def classify_pr(pr_data):
     else:
         return 'Open'
 
-# ===================== مسارات Flask =====================
-
 @app.route('/')
 def home():
     return "The Rejection Whisperer is alive."
@@ -143,8 +108,30 @@ def webhook():
     
     return jsonify({"status": "received"}), 200
 
-# ===================== تشغيل البوت =====================
+@app.route('/stats', methods=['GET'])
+def stats():
+    conn = sqlite3.connect('rejections.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT COUNT(*) FROM rejections')
+    total = cursor.fetchone()[0]
+    
+    cursor.execute('''
+        SELECT classification, COUNT(*) 
+        FROM rejections 
+        GROUP BY classification
+    ''')
+    stats = cursor.fetchall()
+    
+    conn.close()
+    
+    result = {
+        "total_rejections": total,
+        "by_classification": {classification: count for classification, count in stats}
+    }
+    return jsonify(result)
 
 if __name__ == '__main__':
     init_db()
-    app.run(port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
