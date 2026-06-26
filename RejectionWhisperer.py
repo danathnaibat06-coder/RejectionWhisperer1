@@ -1,12 +1,8 @@
 from flask import Flask, request, jsonify
-import json
 import sqlite3
 import os
-from datetime import datetime
 
 app = Flask(__name__)
-
-# ===================== قاعدة البيانات =====================
 
 def init_db():
     conn = sqlite3.connect('rejections.db')
@@ -39,9 +35,7 @@ def save_rejection(pr_number, repo_name, pr_title, author, classification, actio
     conn.close()
     print(f"Saved PR #{pr_number} to database.")
 
-# ===================== تصنيف البوت =====================
-
-AI_AGENTS = ['copilot', 'dependabot', 'devin', 'cursor', 'claude', 'codex', 'github-actions', 'renovate']
+AI_AGENTS = ['copilot', 'dependabot', 'devin', 'cursor']
 
 def is_ai_agent(username):
     if not username:
@@ -80,8 +74,6 @@ def classify_pr(pr_data):
     else:
         return 'Open'
 
-# ===================== مسارات Flask =====================
-
 @app.route('/')
 def home():
     return "The Rejection Whisperer is alive."
@@ -116,8 +108,6 @@ def webhook():
     
     return jsonify({"status": "received"}), 200
 
-# ===================== عرض الإحصائيات (جديد) =====================
-
 @app.route('/stats', methods=['GET'])
 def stats():
     conn = sqlite3.connect('rejections.db')
@@ -140,8 +130,6 @@ def stats():
         "by_classification": {classification: count for classification, count in stats}
     }
     return jsonify(result)
-
-# ===================== تشغيل البوت =====================
 
 if __name__ == '__main__':
     init_db()
