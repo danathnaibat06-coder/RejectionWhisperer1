@@ -115,6 +115,31 @@ def webhook():
     
     return jsonify({"status": "received"}), 200
 
+# ===================== عرض الإحصائيات (جديد) =====================
+
+@app.route('/stats', methods=['GET'])
+def stats():
+    conn = sqlite3.connect('rejections.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT COUNT(*) FROM rejections')
+    total = cursor.fetchone()[0]
+    
+    cursor.execute('''
+        SELECT classification, COUNT(*) 
+        FROM rejections 
+        GROUP BY classification
+    ''')
+    stats = cursor.fetchall()
+    
+    conn.close()
+    
+    result = {
+        "total_rejections": total,
+        "by_classification": {classification: count for classification, count in stats}
+    }
+    return jsonify(result)
+
 # ===================== تشغيل البوت =====================
 
 if __name__ == '__main__':
