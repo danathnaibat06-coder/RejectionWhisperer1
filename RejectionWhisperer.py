@@ -12,7 +12,7 @@ def init_db():
     conn = sqlite3.connect('rejections.db')
     c = conn.cursor()
     
-    # جدول الرفض الرئيسي (مع عمود reasons)
+    # جدول الرفض الرئيسي
     c.execute('''
         CREATE TABLE IF NOT EXISTS rejections (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,16 +23,16 @@ def init_db():
             classification TEXT,
             action TEXT,
             url TEXT,
-            reasons TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # نضيف عمود reasons إذا ما كان موجود (للتحديث)
+    # نحاول نضيف عمود reasons إذا ما كان موجود
     try:
         c.execute('ALTER TABLE rejections ADD COLUMN reasons TEXT')
+        print("Added 'reasons' column to database")
     except:
-        pass  # العمود موجود مسبقاً
+        print("'reasons' column already exists")
     
     conn.commit()
     conn.close()
@@ -101,32 +101,27 @@ def analyze_rejection_reason(pr_data, repo_name):
     pr_body = pr_data.get('body', '').lower()
     pr_title = pr_data.get('title', '').lower()
     
-    # 1. فشل في الاختبارات
     test_keywords = ['test', 'ci', 'build', 'failed', 'error', 'broken', 'failing']
     for keyword in test_keywords:
         if keyword in pr_body or keyword in pr_title:
             reasons.append("فشل في الاختبارات أو CI")
             break
     
-    # 2. تعارض في الكود
     conflict_keywords = ['conflict', 'merge conflict', 'cannot merge', 'out of date']
     for keyword in conflict_keywords:
         if keyword in pr_body or keyword in pr_title:
             reasons.append("تعارض في الكود مع التعديلات الحالية")
             break
     
-    # 3. مشاكل في الأسلوب أو الجودة
     style_keywords = ['style', 'format', 'lint', 'pep8', 'quality', 'maintainability']
     for keyword in style_keywords:
         if keyword in pr_body or keyword in pr_title:
             reasons.append("مشاكل في أسلوب الكود أو الجودة")
             break
     
-    # 4. تغيير كبير جداً
     if pr_data.get('additions', 0) > 500 or pr_data.get('deletions', 0) > 500:
         reasons.append("تغيير كبير جداً (أكثر من 500 سطر)")
     
-    # 5. أولوية منخفضة
     try:
         url = f"https://api.github.com/repos/{repo_name}/pulls?state=open"
         headers = {"Accept": "application/vnd.github.v3+json"}
@@ -138,7 +133,6 @@ def analyze_rejection_reason(pr_data, repo_name):
     except:
         pass
     
-    # 6. سبب غير معروف
     if not reasons:
         reasons.append("سبب غير معروف")
     
@@ -212,6 +206,8 @@ def stats():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# ===================== Dashboard =====================
+
 @app.route('/dashboard')
 def dashboard():
     try:
@@ -228,26 +224,40 @@ def dashboard():
         ''')
         stats = cursor.fetchall()
         
-        cursor.execute('''
-            SELECT pr_title, author, classification, reasons, timestamp 
-            FROM rejections 
-            ORDER BY timestamp DESC 
-            LIMIT 10
-        ''')
-        recent = cursor.fetchall()
+        # نحاول نجيب reasons، إذا ما كان العمود موجود نتعامل معه
+        try:
+            cursor.execute('''
+                SELECT pr_title, author, classification, reasons, timestamp 
+                FROM rejections 
+                ORDER BY timestamp DESC 
+                LIMIT 10
+            ''')
+            recent = cursor.fetchall()
+        except:
+            cursor.execute('''
+                SELECT pr_title, author, classification, timestamp 
+                FROM rejections 
+                ORDER BY timestamp DESC 
+                LIMIT 10
+            ''')
+            recent_data = cursor.fetchall()
+            recent = [(title, author, classification, 'No reason data', timestamp) for title, author, classification, timestamp in recent_data]
         
         # إحصائيات الأسباب
-        conn2 = sqlite3.connect('rejections.db')
-        cursor2 = conn2.cursor()
-        cursor2.execute('''
-            SELECT reasons, COUNT(*) 
-            FROM rejections 
-            GROUP BY reasons
-            ORDER BY COUNT(*) DESC
-            LIMIT 5
-        ''')
-        reason_stats = cursor2.fetchall()
-        conn2.close()
+        try:
+            conn2 = sqlite3.connect('rejections.db')
+            cursor2 = conn2.cursor()
+            cursor2.execute('''
+                SELECT reasons, COUNT(*) 
+                FROM rejections 
+                GROUP BY reasons
+                ORDER BY COUNT(*) DESC
+                LIMIT 5
+            ''')
+            reason_stats = cursor2.fetchall()
+            conn2.close()
+        except:
+            reason_stats = []
         
         conn.close()
         
