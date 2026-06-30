@@ -1,8 +1,11 @@
 from flask import Flask, request, jsonify
 import sqlite3
 import os
+from datetime import datetime
 
 app = Flask(__name__)
+
+# ===================== قاعدة البيانات =====================
 
 def init_db():
     conn = sqlite3.connect('rejections.db')
@@ -35,7 +38,9 @@ def save_rejection(pr_number, repo_name, pr_title, author, classification, actio
     conn.close()
     print(f"Saved PR #{pr_number} to database.")
 
-AI_AGENTS = ['copilot', 'dependabot', 'devin', 'cursor']
+# ===================== تصنيف البوت =====================
+
+AI_AGENTS = ['copilot', 'dependabot', 'devin', 'cursor', 'claude', 'codex', 'github-actions', 'renovate']
 
 def is_ai_agent(username):
     if not username:
@@ -73,6 +78,8 @@ def classify_pr(pr_data):
         return 'Merged'
     else:
         return 'Open'
+
+# ===================== مسارات Flask =====================
 
 @app.route('/')
 def home():
@@ -130,6 +137,202 @@ def stats():
         "by_classification": {classification: count for classification, count in stats}
     }
     return jsonify(result)
+
+# ===================== Dashboard =====================
+
+@app.route('/dashboard')
+def dashboard():
+    conn = sqlite3.connect('rejections.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT COUNT(*) FROM rejections')
+    total = cursor.fetchone()[0]
+    
+    cursor.execute('''
+        SELECT classification, COUNT(*) 
+        FROM rejections 
+        GROUP BY classification
+    ''')
+    stats = cursor.fetchall()
+    
+    cursor.execute('''
+        SELECT pr_title, author, classification, timestamp 
+        FROM rejections 
+        ORDER BY timestamp DESC 
+        LIMIT 5
+    ''')
+    recent = cursor.fetchall()
+    
+    conn.close()
+    
+    classification_colors = {
+        'Silent AI Rejection': 'badge-ai-silent',
+        'AI Rejection with Comments': 'badge-ai-comment',
+        'Silent Human Rejection': 'badge-human-silent',
+        'Human Rejection with Comments': 'badge-human-comment',
+        'Merged': 'badge-merged',
+        'Open': 'badge-open'
+    }
+    
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Rejection Whisperer - Dashboard</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 40px;
+                background-color: #f5f7fa;
+                color: #333;
+            }}
+            h1 {{
+                color: #2c3e50;
+                border-bottom: 3px solid #3498db;
+                padding-bottom: 10px;
+            }}
+            .stats {{
+                display: flex;
+                gap: 20px;
+                flex-wrap: wrap;
+                margin: 30px 0;
+            }}
+            .card {{
+                background: white;
+                padding: 20px 30px;
+                border-radius: 12px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+                flex: 1;
+                min-width: 150px;
+                text-align: center;
+            }}
+            .card h3 {{
+                margin: 0;
+                font-weight: normal;
+                color: #7f8c8d;
+                font-size: 14px;
+                text-transform: uppercase;
+            }}
+            .card .number {{
+                font-size: 36px;
+                font-weight: bold;
+                color: #2c3e50;
+                margin: 10px 0 5px;
+            }}
+            table {{
+                width: 100%;
+                border-collapse: collapse;
+                background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+                margin-top: 20px;
+            }}
+            th {{
+                background: #3498db;
+                color: white;
+                padding: 12px;
+                text-align: left;
+            }}
+            td {{
+                padding: 12px;
+                border-bottom: 1px solid #ecf0f1;
+            }}
+            tr:hover {{
+                background-color: #f8f9fa;
+            }}
+            .classification-badge {{
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: bold;
+            }}
+            .badge-ai-silent {{ background: #e74c3c; color: white; }}
+            .badge-ai-comment {{ background: #e67e22; color: white; }}
+            .badge-human-silent {{ background: #3498db; color: white; }}
+            .badge-human-comment {{ background: #2ecc71; color: white; }}
+            .badge-merged {{ background: #9b59b6; color: white; }}
+            .badge-open {{ background: #95a5a6; color: white; }}
+            .footer {{
+                margin-top: 40px;
+                text-align: center;
+                color: #95a5a6;
+                font-size: 14px;
+            }}
+            .footer a {{
+                color: #3498db;
+                text-decoration: none;
+            }}
+        </style>
+    </head>
+    <body>
+        <h1>Rejection Whisperer - Dashboard</h1>
+        
+        <div class="stats">
+            <div class="card">
+                <h3>Total Rejections</h3>
+                <div class="number">{total}</div>
+            </div>
+    '''
+    
+    for classification, count in stats:
+        html += f'''
+            <div class="card">
+                <h3>{classification}</h3>
+                <div class="number">{count}</div>
+            </div>
+        '''
+    
+    html += '''
+        </div>
+        
+        <h2>Recent Rejections</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Classification</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+    '''
+    
+    if recent:
+        for title, author, classification, timestamp in recent:
+            badge_class = classification_colors.get(classification, 'badge-open')
+            html += f'''
+                <tr>
+                    <td>{title}</td>
+                    <td>{author}</td>
+                    <td><span class="classification-badge {badge_class}">{classification}</span></td>
+                    <td>{timestamp}</td>
+                </tr>
+            '''
+    else:
+        html += '''
+            <tr>
+                <td colspan="4" style="text-align: center; color: #95a5a6;">No rejections recorded yet.</td>
+            </tr>
+        '''
+    
+    html += '''
+            </tbody>
+        </table>
+        
+        <div class="footer">
+            <p><a href="/stats">View raw JSON stats</a> · <a href="https://github.com/danthanibat06-coder/RejectionWhisperer1" target="_blank">GitHub Repository</a></p>
+            <p>Powered by The Rejection Whisperer</p>
+        </div>
+    </body>
+    </html>
+    '''
+    
+    return html
+
+# ===================== تشغيل البوت =====================
 
 if __name__ == '__main__':
     init_db()
