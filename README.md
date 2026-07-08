@@ -1,99 +1,90 @@
-# The Rejection Whisperer
+The Rejection Whisperer
 
-هذا بوت صغير سويته عشان يتتبع Pull Requests اللي تنرفض بصمت (بدون تعليقات) في مشاريع GitHub. الفكرة جتني لما لاحظت إن فيه ناس كتير بتقدم Pull Requests، وبعضها ينرفض بدون أي سبب مكتوب. حبيت أعرف ليش، وهل في نمط معين للرفض.
-
----
-
-## وش يسوي البوت؟
-
-- يكتشف Pull Requests اللي تنرفض بدون تعليقات (الرفض الصامت)
-- يصنف الرفض لأربع أنواع:
-  - رفض صامت من ذكاء اصطناعي
-  - رفض مع تعليقات من ذكاء اصطناعي
-  - رفض صامت من بشري
-  - رفض مع تعليقات من بشري
-- يحفظ كل الرفض في قاعدة بيانات
-- يعرض إحصائيات فورية عن طريق رابط /stats
-- يشتغل 24 ساعة على الإنترنت
+The Rejection Whisperer is an intelligent bot designed to monitor and analyze silently rejected Pull Requests in GitHub repositories. The idea emerged from observing that many Pull Requests, especially those submitted by AI agents, are closed without any explicit feedback or reasoning. This bot aims to uncover patterns behind such silent rejections and provide actionable insights for development teams.
 
 ---
 
-## وش استخدمت عشان أسويه؟
+What Does the Bot Do?
 
-Python: اللغة الأساسية
-Flask: عشان يشتغل كسيرفر ويستقبل طلبات
-SQLite: قاعدة بيانات بسيطة لحفظ الرفض
-GitHub API: عشان يستقبل إشعارات Pull Requests
-Render: عشان ينشر على الإنترنت ويشتغل 24 ساعة
-
----
-
-## كيف يشتغل البوت؟
-
-1. GitHub يرسل إشعار للبوت لما أي Pull Request ينقفل
-2. البوت يتحقق إذا الـ PR اندمج (Merge) ولا انرفض (Close)
-3. البوت يتحقق إذا كاتبه بشري ولا ذكاء اصطناعي
-4. البوت يتحقق إذا فيه تعليقات ولا لأ
-5. البوت يصنف الرفض ويحفظه في قاعدة البيانات
-6. تقدر تشوف الإحصائيات على رابط /stats
+- Detects Pull Requests that are closed without comments (silent rejections)
+- Classifies rejections into four categories:
+  - Silent AI Rejection
+  - AI Rejection with Comments
+  - Silent Human Rejection
+  - Human Rejection with Comments
+- Stores all rejection data in a structured SQLite database
+- Provides real-time statistics via a REST API endpoint (/stats) and an interactive Dashboard
+- Operates 24/7 as a live web service
 
 ---
 
-## وكلاء الذكاء الاصطناعي اللي البوت يكتشفهم
+Tech Stack
 
-- copilot
-- dependabot
-- devin
-- cursor
-- claude
-- codex
-- github-actions
-- renovate
+Python : Core programming language
+Flask : Web framework for handling requests and routing
+SQLite : Lightweight embedded database for data persistence
+GitHub API : Webhook integration for real-time PR event listening
+Render : Cloud hosting for 24/7 deployment
 
 ---
 
-## كيف تشغل البوت على جهازك؟
+How It Works
 
-1. تنسخ المشروع:
+1. GitHub sends a webhook payload to the bot whenever a Pull Request is closed
+2. The bot checks whether the PR was merged or closed without merging
+3. It identifies the author as either human or AI agent
+4. It determines whether the PR received any comments before being closed
+5. Based on these checks, the PR is classified and stored in the database
+6. Statistics are made available through /stats and the Dashboard interface
+
+---
+
+ Detected AI Agents
+
+copilot, dependabot, devin, cursor, claude, codex, github-actions, renovate
+
+---
+
+ Local Setup Instructions
+
+1. Clone the repository:
 git clone https://github.com/danthanibat06-coder/RejectionWhisperer1.git
 
-2. تثبت المكتبات المطلوبة:
+2. Install dependencies:
 pip install -r requirements.txt
 
-3. تشغل البوت:
+3. Run the bot:
 python RejectionWhisperer.py
 
-4. تفتح في المتصفح:
+4. Open in your browser:
 http://127.0.0.1:5000
 
 ---
 
-## الرابط المباشر للبوت
+ Live Links
 
-https://rejectionwhisperer1.onrender.com
+Live Bot: https://rejectionwhisperer1.onrender.com
+Dashboard: https://rejectionwhisperer1.onrender.com/dashboard
+Raw Stats: https://rejectionwhisperer1.onrender.com/stats
+
+---
+ Future Roadmap
+
+- Automated weekly reports via Discord or Slack
+- Graphical dashboard with data visualizations
+- CSV/Excel export functionality for offline analysis
+- Enhanced classification logic using NLP on PR descriptions
+- Real-time notifications for high-priority rejections
 
 ---
 
-## رابط الإحصائيات
-
-https://rejectionwhisperer1.onrender.com/stats
-
----
-
-## أفكار للتطوير المستقبلي
-
-- إرسال تقرير أسبوعي على Discord أو Slack
-- واجهة عرض رسومية للبيانات
-- تصدير البيانات كملف CSV
-
----
-
-## من صنع هذا المشروع؟
+ Author
 
 danthanibat06-coder
+GitHub: https://github.com/danthanibat06-coder
 
 ---
 
-## ادعم المشروع
+## Support the Project
 
-إذا حسيت إن المشروع مفيد، تقدر تعطيه نجمة على GitHub.
+If you find this project useful, please consider giving it a star on GitHub. Your support helps motivate continuous improvement and open-source contributions.
