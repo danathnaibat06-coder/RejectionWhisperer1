@@ -3,8 +3,20 @@ import sqlite3
 import os
 import requests
 from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import schedule
+import time
+import threading
 
 app = Flask(__name__)
+
+# ===================== إعدادات الإيميل =====================
+
+EMAIL_SENDER = "your-email@gmail.com"        # غيريها لإيميلك
+EMAIL_PASSWORD = "nqjk nlfm ermv xbzw"       # كلمة مرور التطبيق
+EMAIL_RECEIVER = "your-email@gmail.com"      # إيميل الاستقبال
 
 # ===================== قاعدة البيانات =====================
 
@@ -12,7 +24,6 @@ def init_db():
     conn = sqlite3.connect('rejections.db')
     c = conn.cursor()
     
-    # جدول الرفض الرئيسي
     c.execute('''
         CREATE TABLE IF NOT EXISTS rejections (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,16 +34,15 @@ def init_db():
             classification TEXT,
             action TEXT,
             url TEXT,
+            reasons TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
-    # نحاول نضيف عمود reasons إذا ما كان موجود
     try:
         c.execute('ALTER TABLE rejections ADD COLUMN reasons TEXT')
-        print("Added 'reasons' column to database")
     except:
-        print("'reasons' column already exists")
+        pass
     
     conn.commit()
     conn.close()
@@ -138,6 +148,81 @@ def analyze_rejection_reason(pr_data, repo_name):
     
     return reasons
 
+# ===================== تقرير الإيميل الأسبوعي =====================
+
+def send_email_report():
+    try:
+        conn = sqlite3.connect('rejections.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT COUNT(*) FROM rejections 
+            WHERE timestamp >= datetime('now', '-7 days')
+        ''')
+        week_total = cursor.fetchone()[0]
+        
+        cursor.execute('''
+            SELECT classification, COUNT(*) 
+            FROM rejections 
+            WHERE timestamp >= datetime('now', '-7 days')
+            GROUP BY classification
+        ''')
+        week_stats = cursor.fetchall()
+        
+        cursor.execute('SELECT COUNT(*) FROM rejections')
+        total = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        subject = "Rejection Whisperer - Weekly Report"
+        
+        body = f"""
+Rejection Whisperer - Weekly Report
+===================================
+
+Rejections this week: {week_total}
+Total rejections: {total}
+
+Details:
+"""
+        
+        if week_stats:
+            for classification, count in week_stats:
+                body += f"\n- {classification}: {count}"
+        else:
+            body += "\n🎉 No rejections this week!"
+        
+        body += "\n\n-------------------\n"
+        body += f"Dashboard: https://rejectionwhisperer1.onrender.com/dashboard"
+        
+        msg = MIMEMultipart()
+        msg['From'] = EMAIL_SENDER
+        msg['To'] = EMAIL_RECEIVER
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        
+        print("Weekly report sent to email")
+        
+    except Exception as e:
+        print(f"Error sending email: {e}")
+
+def schedule_email_report():
+    schedule.every().sunday.at("10:00").do(send_email_report)
+    print("Weekly email scheduled for Sunday at 10:00 AM")
+    
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
+thread = threading.Thread(target=schedule_email_report, daemon=True)
+thread.start()
+
 # ===================== مسارات Flask =====================
 
 @app.route('/')
@@ -224,7 +309,6 @@ def dashboard():
         ''')
         stats = cursor.fetchall()
         
-        # نحاول نجيب reasons، إذا ما كان العمود موجود نتعامل معه
         try:
             cursor.execute('''
                 SELECT pr_title, author, classification, reasons, timestamp 
@@ -243,7 +327,6 @@ def dashboard():
             recent_data = cursor.fetchall()
             recent = [(title, author, classification, 'No reason data', timestamp) for title, author, classification, timestamp in recent_data]
         
-        # إحصائيات الأسباب
         try:
             conn2 = sqlite3.connect('rejections.db')
             cursor2 = conn2.cursor()
@@ -428,6 +511,8 @@ def dashboard():
         return html
     except Exception as e:
         return f"<h1>Error</h1><p>{str(e)}</p>", 500
+
+# ===================== تشغيل البوت =====================
 
 if __name__ == '__main__':
     init_db()
