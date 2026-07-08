@@ -14,9 +14,9 @@ app = Flask(__name__)
 
 # ===================== إعدادات الإيميل =====================
 
-EMAIL_SENDER = "your-email@gmail.com"        # غيريها لإيميلك
-EMAIL_PASSWORD = "nqjk nlfm ermv xbzw"       # كلمة مرور التطبيق
-EMAIL_RECEIVER = "your-email@gmail.com"      # إيميل الاستقبال
+EMAIL_SENDER = "danthanibat06@gmail.com"
+EMAIL_PASSWORD = "nqjk nlfm ermv xbzw"
+EMAIL_RECEIVER = "danthanibat06@gmail.com"
 
 # ===================== قاعدة البيانات =====================
 
